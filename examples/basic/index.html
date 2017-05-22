@@ -46,7 +46,8 @@ canvas {
 
 <script>
 WebVRConfig = {
-  BUFFER_SCALE: 1.0,
+  FORCE_ENABLE_VR: true,
+  CARDBOARD_UI_DISABLED: true
 };
 
 document.addEventListener('touchmove', function(e) {
@@ -55,13 +56,14 @@ document.addEventListener('touchmove', function(e) {
 </script>
 
 <!-- three.js library -->
-<script src="node_modules/three/build/three.js"></script>
+<script src="../three.js"></script>
 
 <!-- VRControls.js applies the WebVR transformations to a three.js camera object. -->
 <script src="node_modules/three/examples/js/controls/VRControls.js"></script>
 
 <!-- VREffect.js handles stereo camera setup and rendering.  -->
-<script src="node_modules/three/examples/js/effects/VREffect.js"></script>
+<script src="../WebVR.js"></script>
+<script src="../WebVRCamera.js"></script>
 
 <!-- A polyfill for the WebVR API.  -->
 <script src="../../build/webvr-polyfill.js"></script>
@@ -85,10 +87,6 @@ var camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHei
 // Apply VR headset positional data to camera.
 var controls = new THREE.VRControls(camera);
 
-// Apply VR stereo rendering to renderer.
-var effect = new THREE.VREffect(renderer);
-effect.setSize(window.innerWidth, window.innerHeight);
-
 
 // Add a repeating grid as a skybox.
 var boxWidth = 5;
@@ -97,14 +95,14 @@ loader.load('img/box.png', onTextureLoaded);
 
 // Get the VRDisplay and save it for later.
 var vrDisplay = null;
-navigator.getVRDisplays().then(function(displays) {
-  if (displays.length > 0) {
-    vrDisplay = displays[0];
+WEBVR.getVRDisplay( function ( display ) {
 
-    // Kick off the render loop.
-    vrDisplay.requestAnimationFrame(animate);
-  }
-});
+  vrDisplay = display;
+
+  camera = new THREE.WebVRCamera( display, renderer );
+  controls = new THREE.VRControls(camera);
+  vrDisplay.requestAnimationFrame(animate);
+} );
 
 function onTextureLoaded(texture) {
   texture.wrapS = THREE.RepeatWrapping;
@@ -128,7 +126,7 @@ var material = new THREE.MeshNormalMaterial();
 var cube = new THREE.Mesh(geometry, material);
 
 // Position cube mesh
-cube.position.z = -1;
+cube.position.z = -0.6;
 
 // Add cube mesh to your three.js scene
 scene.add(cube);
@@ -141,12 +139,12 @@ function animate(timestamp) {
 
   // Apply rotation to cube mesh
   cube.rotation.y += delta * 0.0006;
-
+  cube.position.x = Math.sin(timestamp/3000) * 0.9;
   // Update VR headset position and apply to camera.
   controls.update();
 
   // Render the scene.
-  effect.render(scene, camera);
+  renderer.render(scene, camera);
 
   // Keep looping.
   vrDisplay.requestAnimationFrame(animate);
@@ -154,10 +152,12 @@ function animate(timestamp) {
 
 function onResize() {
   console.log('Resizing to %s x %s.', window.innerWidth, window.innerHeight);
-  effect.setSize(window.innerWidth, window.innerHeight);
+  renderer.setSize(window.innerWidth, window.innerHeight);
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
 }
+
+onResize();
 
 function onVRDisplayPresentChange() {
   console.log('onVRDisplayPresentChange');
