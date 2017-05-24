@@ -10479,6 +10479,7 @@
 		this.matrixWorldNeedsUpdate = false;
 
 		this.layers = new Layers();
+		this.frusta = new Layers();
 		this.visible = true;
 
 		this.castShadow = false;
@@ -10486,7 +10487,6 @@
 
 		this.frustumCulled = true;
 		this.renderOrder = 0;
-		this.frustaMask = 0;
 		
 		this.userData = {};
 	}
@@ -20976,7 +20976,8 @@
 
 			if ( camera.parent === null ) camera.updateMatrixWorld();
 
-			var cameras = camera.cameras || [camera];
+			var cameras = [ camera ];
+			if( camera.cameras ) { camera.cameras.forEach( function (c) { cameras.push(c); }); }
 
 			cameras.forEach( function (c, i) {
 
@@ -21255,23 +21256,21 @@
 			
 			function testFrusta ( obj, fn ) {
 
-				if ( ! obj.frustumCulled ) { return true; }
-				
-				var mask = 0;
-
 				_frusta.forEach( function ( fr, i ) {
 
-					if ( fn.call( fr, object ) ) {
+					if ( ! obj.frustumCulled ||  fn.call( fr, object ) ) {
 
-						mask |= ( 1 << i );
+						obj.frusta.enable( i );
+
+					} else {
+
+						obj.frusta.disable( i );
 
 					}
 
 				});
-				
-				obj.frustaMask = mask;
 
-				return mask !== 0;
+				return obj.frusta.mask !== 0;
 			}
 
 			if ( visible ) {
@@ -21381,9 +21380,12 @@
 
 					for ( var j = 0, jl = cameras.length; j < jl; j ++ ) {
 
-						if ( object.frustaMask & 1 << j === 0 ) { continue; }
-
 						var camera2 = cameras[ j ];
+
+						var canRender = object.frusta.test( camera2.layers ) && object.layers.test( camera2.layers );
+
+						if ( ! canRender ) { continue; }
+
 						var bounds = camera2.bounds;
 
 						_this.setViewport(
@@ -36062,7 +36064,6 @@
 
 		this.enabled = false;
 		this.cameras = array || [];
-
 	}
 
 	ArrayCamera.prototype = Object.assign( Object.create( PerspectiveCamera.prototype ), {
